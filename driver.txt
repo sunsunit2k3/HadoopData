@@ -1,23 +1,18 @@
+
 public class SalesMapper extends Mapper<LongWritable, Text, Text, IntWritable> {
 
-    private boolean isHeader = true;  // To skip the header
+    private final static IntWritable one = new IntWritable(1);
+    private Text country = new Text();
 
     @Override
     protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
-        if (isHeader) {
-            isHeader = false;  // Skip the first line (header)
-            return;
-        }
+        // Tách dòng dữ liệu thành các trường
+        String[] fields = value.toString().split(",");
 
-        String[] fields = value.toString().split(","); // Split the line into fields using a comma
-        
-        // Check if the row contains the required fields
+        // Đảm bảo rằng dòng dữ liệu có ít nhất 8 trường (quốc gia nằm ở cột thứ 7)
         if (fields.length > 7) {
-            String country = fields[7].trim();  // Extract and trim the country (7th field)
-            
-            if (!country.isEmpty()) {  // Check if the country field is not empty
-                context.write(new Text(country), new IntWritable(1));  // Output key: country, value: 1
-            }
+            country.set(fields[7]); // Trích xuất quốc gia
+            context.write(country, one); // Gửi cặp key-value (quốc gia, 1)
         }
     }
 }
@@ -26,38 +21,34 @@ public class SalesReducer extends Reducer<Text, IntWritable, Text, IntWritable> 
 
     @Override
     protected void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
-        int transactionCount = 0;
+        int sum = 0;
 
-        // Sum up all the values (number of transactions) for each country
+        // Tính tổng số lượng sản phẩm bán ra cho mỗi quốc gia
         for (IntWritable value : values) {
-            transactionCount += value.get();
+            sum += value.get();
         }
 
-        // Output key: country, value: total number of transactions
-        context.write(key, new IntWritable(transactionCount));
+        context.write(key, new IntWritable(sum)); // Gửi cặp key-value (quốc gia, tổng số lượng)
     }
 }
-public class SalesDriver {
-
     public static void main(String[] args) throws Exception {
-        // Create a new configuration and job
+        // Cấu hình công việc Hadoop
         Configuration conf = new Configuration();
-        Job job = Job.getInstance(conf, "Sales Transactions Count");
+        Job job = Job.getInstance(conf, "Sales Count by Country");
 
-        // Set the main class, mapper, and reducer classes
+        // Thiết lập các lớp Mapper và Reducer
         job.setJarByClass(SalesDriver.class);
         job.setMapperClass(SalesMapper.class);
         job.setReducerClass(SalesReducer.class);
 
-        // Set output key and value types
+        // Thiết lập định dạng đầu ra cho key-value
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(IntWritable.class);
 
-        // Set input and output paths
-        FileInputFormat.addInputPath(job, new Path(args[0]));  // input CSV file path
-        FileOutputFormat.setOutputPath(job, new Path(args[1])); // output directory path
+        // Thiết lập các đường dẫn cho dữ liệu đầu vào và đầu ra
+        FileInputFormat.addInputPath(job, new Path(args[0]));
+        FileOutputFormat.setOutputPath(job, new Path(args[1]));
 
-        // Wait for the job to finish
+        // Chạy công việc MapReduce và chờ hoàn thành
         System.exit(job.waitForCompletion(true) ? 0 : 1);
     }
-}
