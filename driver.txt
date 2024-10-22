@@ -1,0 +1,47 @@
+public class SalesMapper extends Mapper<LongWritable, Text, Text, IntWritable> {
+
+    @Override
+    protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+        String[] fields = value.toString().split(","); // Split the line into fields using comma
+        if (fields.length > 7) {  // Check if there are enough fields in the row
+            String country = fields[7]; // Extract country (field 7)
+            context.write(new Text(country), new IntWritable(1)); // Output key: country, value: 1
+        }
+    }
+}
+public class SalesReducer extends Reducer<Text, IntWritable, Text, IntWritable> {
+
+    @Override
+    protected void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
+        int transactionCount = 0;
+
+        // Sum up all the values (number of transactions) for each country
+        for (IntWritable value : values) {
+            transactionCount += value.get();
+        }
+
+        // Output key: country, value: total number of transactions
+        context.write(key, new IntWritable(transactionCount));
+    }
+}
+    public static void main(String[] args) throws Exception {
+        // Create a new configuration and job
+        Configuration conf = new Configuration();
+        Job job = Job.getInstance(conf, "Sales Transactions Count");
+
+        // Set the main class, mapper, and reducer classes
+        job.setJarByClass(SalesDriver.class);
+        job.setMapperClass(SalesMapper.class);
+        job.setReducerClass(SalesReducer.class);
+
+        // Set output key and value types
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(IntWritable.class);
+
+        // Set input and output paths
+        FileInputFormat.addInputPath(job, new Path(args[0]));  // input CSV file path
+        FileOutputFormat.setOutputPath(job, new Path(args[1])); // output directory path
+
+        // Wait for the job to finish
+        System.exit(job.waitForCompletion(true) ? 0 : 1);
+    }
