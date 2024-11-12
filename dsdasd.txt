@@ -1,0 +1,8 @@
+SELECT 
+    country,
+    SUM(gold) AS total_gold,
+    RANK() OVER (ORDER BY SUM(gold) DESC) AS rank
+FROM olympics
+WHERE region = 'Asia'
+GROUP BY country
+ORDER BY total_gold DESC;
