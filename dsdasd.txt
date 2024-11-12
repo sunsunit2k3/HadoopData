@@ -6,3 +6,15 @@ FROM olympics
 WHERE region = 'Asia'
 GROUP BY country
 ORDER BY total_gold DESC;
+
+
+SELECT 
+    region,
+    SUM(gold) AS total_gold,
+    SUM(silver) AS total_silver,
+    SUM(bronze) AS total_bronze,
+    SUM(total) AS total_medals,
+    RANK() OVER (ORDER BY SUM(total) DESC) AS rank
+FROM olympics
+GROUP BY region
+ORDER BY total_medals DESC;
